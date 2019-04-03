@@ -1,4 +1,5 @@
-# For more detailed documentation see
-# https://atom.io/docs/latest/advanced/keymaps
 'atom-workspace':
-  'insert': 'overtype-mode:toggle'
+  insert    : 'overtype-mode:toggle'
+body:
+  backspace : 'overtype-mode:backspace'
+  delete    : 'overtype-mode:delete'

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+- added mode-indicator inside the atom-status-bar.
+- adjusted behaviour of <backspace>-key during overtype-mode.
+- adjusted behaviour of <delete>-key during overtype-mode.
+- added option to enable/disable of cursor-styling.
+- added option to hide or positoion mode-indicator.
+- made all other options configurable.
+
 ## 0.4.0
 - Fixed error in Atom 1.19
 

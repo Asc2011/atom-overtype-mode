@@ -1,5 +1,7 @@
 // Using current syntax cursor colour
 @import 'syntax-variables';
+@import 'ui-variables';
+
 
 atom-text-editor.overtype-cursor.editor .cursors .cursor
 {
@@ -18,4 +20,21 @@ atom-text-editor.overtype-cursor.editor .cursors.blink-off .cursor
 
 atom-text-editor[mini]:not(.is-focused).editor .cursors .cursor {
   display: none;
+}
+
+.mode-insert {
+  width             : 45px;
+  background-color  : @tab-bar-background-color;
+  color             : @text-color;
+  border            : none;
+}
+
+.mode-overwrite {
+  width             : 45px;
+  color             : @tab-bar-background-color;
+  background-color  : @text-color;
+  border-color      : #0000;
+  border-radius     : 8px;
+  border-width      : 2px 2px 2px 2px;
+  border-style      : solid;
 }

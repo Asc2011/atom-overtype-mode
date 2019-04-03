@@ -1,13 +1,18 @@
 {
   "name": "atom-overtype-mode",
   "main": "./lib/atom-overtype-mode",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Provides overtype mode for Atom",
-  "activationCommands": {
-    "atom-text-editor": "overtype-mode:toggle"
-  },
+  "activationCommands": {},
   "repository": "https://github.com/brunetton/atom-overtype-mode",
   "license": "MIT",
+  "consumedServices": {
+    "status-bar": {
+      "versions": {
+        "^1.0.0": "consumeStatusBar"
+      }
+    }
+  },
   "engines": {
     "atom": ">=1.13 <2.0.0"
   }
