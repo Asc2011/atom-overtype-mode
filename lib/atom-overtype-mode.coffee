@@ -9,6 +9,7 @@ class OvertypeMode
   config    : require './config.coffee'
   className : 'overtype-cursor'
 
+  # TODO filter the commands and activate only according user-settings
 
   activate: (state) ->
 
@@ -22,6 +23,7 @@ class OvertypeMode
         toggle    : () => @toggle()
         delete    : () => @delete()
         backspace : () => @backspace()
+        pasteOver : () => @pasteOver()
       }
 
     @events.add(
@@ -121,8 +123,19 @@ class OvertypeMode
     )
 
 
+  info: (editor) ->
+    log = console.log
+    log "multiple cursors", editor.hasMultipleCursors()
+    selectedText = editor.getSelectedText()
+    sels = editor.getSelections()
+    log "has #{sels.length}-selection-len=#{selectedText.length} '#{selectedText}'"
+    for sel, i in sels
+      log "\tsel-#{i}", sel.getScreenRange()
+
+
   backspace: ->
     editor = @activeEditor()
+    @info editor
 
     normalBS = -> editor.backspace()
 
@@ -140,16 +153,46 @@ class OvertypeMode
 
   delete: ->
     editor = @activeEditor()
+    # @info editor
 
     if @active and @cfg 'changedDelete'
-      cursor = editor.getLastCursor()
-      return if cursor.isAtEndOfLine()
 
-      editor.delete()
-      editor.insertText ' '
-      editor.moveLeft()
+      # cycle thru all selections
+      for sel in editor.getSelections()
+        txt = sel.getText()
+        if txt.length > 1
+          # prepare replacement-spaces
+          spaces = Array( txt.length ).join ' '
+          range = sel.getScreenRange()
+          sel.insertText spaces
+          cursor = editor.getLastCursor()
+          # place caret to the beginning of the replacement
+          cursor.setScreenPosition [
+            range.start.row
+            range.start.column
+          ]
+        else
+          editor.delete()
+          editor.insertText ' '
+          editor.moveLeft()
     else
+      # standard-mode
       editor.delete()
+
+
+  pasteOver: ->
+    editor = @activeEditor()
+
+    unless @active
+      return editor.pasteText()
+
+    text = atom.clipboard.read()
+    return if text.length is 0
+
+    editor.selectRight text.length
+    range = editor.insertText text
+
+    console.log "insertText gave", range
 
 
   onType: (editor) ->
