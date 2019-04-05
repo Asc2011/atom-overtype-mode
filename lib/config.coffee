@@ -26,10 +26,16 @@ changedBackspace:
   description: 'In **overwrite**-mode a keypress replaces the character left from the caret with a space-char. Not changing the line-length. When the caret is positioned at the very beginning of a line, then nothing happens.'
   type: 'boolean'
   default: on
-usePasteOver:
+changedPaste:
   order: 10
   title: 'Use destructive-insert behaviour for clipboard-paste operations.'
   description: 'When enabled, any common paste-operation (Ctrl-v, Cmd-v) in **overwrite**-mode performs a *destructive*-insert starting from the current caret-position to the right. The contents of the clip-board **overwrite the existing contents**.'
+  type: 'boolean'
+  default: on
+changedReturn:
+  order: 11
+  title: 'Change behaviour of return-key.'
+  description: 'When enabled, a RETURN-key pressed does not insert a new-line. Instead the caret moves to the beginning of the next line.'
   type: 'boolean'
   default: on
 changeCaretStyle:

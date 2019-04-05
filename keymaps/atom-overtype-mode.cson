@@ -1,6 +1,7 @@
-'atom-workspace':
+'atom-text-editor':
   insert    : 'overtype-mode:toggle'
-body:
   backspace : 'overtype-mode:backspace'
   delete    : 'overtype-mode:delete'
-  'cmd-v'   : 'overtype-mode:pasteOver'
+  'cmd-v'   : 'overtype-mode:paste'
+# 'atom-text-editor atom-pane-container':
+#   enter     : 'overtype-mode:test'

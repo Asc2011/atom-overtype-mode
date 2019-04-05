@@ -1,15 +1,17 @@
 # Changelog
 
 ## 0.5.0
+- moved behaviours into `lib/actions.coffee`.
 - added mode-indicator inside the atom-status-bar. Implements [issue-#19](https://github.com/brunetton/atom-overtype-mode/issues/19)
 - adjusted behaviour of `backspace`-key during overtype-mode. Partial-fix for [issue-#12](https://github.com/brunetton/atom-overtype-mode/issues/12)
-- adjusted behaviour of `delete`-key during overwrite-mode.
-- adjusted behaviour of `paste-from-clipboard` during overwrite-mode.
+- adjusted behaviour of `delete`-action.
+- adjusted behaviour of `paste-from-clipboard`-action.
+- adjusted behaviour of `return`-action.
+- adjusted behaviour of `backspace`-action.
 - settings-section :
   - added option to enable/disable of cursor-styling.
-  - added option to hide or position the mode-indicator.
+  - added option to hide and/or position the mode-indicator.
   - made all other options configurable.
-
 
 ## 0.4.0
 - Fixed error in Atom 1.19

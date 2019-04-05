@@ -1,16 +1,20 @@
+
 { CompositeDisposable } = require 'atom'
+
+actions = require './actions.coffee'
 
 
 class OvertypeMode
 
-  active    : false
+  active    : no
   cmds      : new CompositeDisposable()
   events    : new CompositeDisposable()
   config    : require './config.coffee'
   className : 'overtype-cursor'
 
-  # TODO filter the commands and activate only according user-settings
-
+  # TODO filter the commands and activate only according 
+  # to user-settings. Plus observe changes to config-settings.
+ 
   activate: (state) ->
 
     @cmds.add(
@@ -23,7 +27,7 @@ class OvertypeMode
         toggle    : () => @toggle()
         delete    : () => @delete()
         backspace : () => @backspace()
-        pasteOver : () => @pasteOver()
+        paste     : () => @paste()
       }
 
     @events.add(
@@ -38,7 +42,7 @@ class OvertypeMode
   activeEditor: ->
     atom.workspace.getActiveTextEditor()
 
-  consumeStatusBar: (statusBar) ->
+  consumeStatusBar: ( statusBar ) ->
 
     @sbItem?.dispose()
 
@@ -116,8 +120,14 @@ class OvertypeMode
 
 
   prepareEditor: (editor) ->
-
+    
+    if @cfg 'changedReturn'
+      unless editor._insertNewline?
+        editor._insertNewline = editor.insertNewline
+        editor.insertNewline = => @enter()
+      
     @updateCursorStyle()
+    
     @events.add(
       editor.onWillInsertText => @onType editor
     )
@@ -131,78 +141,28 @@ class OvertypeMode
     log "has #{sels.length}-selection-len=#{selectedText.length} '#{selectedText}'"
     for sel, i in sels
       log "\tsel-#{i}", sel.getScreenRange()
-
-
-  backspace: ->
-    editor = @activeEditor()
-    @info editor
-
-    normalBS = -> editor.backspace()
-
-    unless @active then return normalBS()
-    unless @cfg 'changedBackspace' then return normalBS()
-
-    cursor = editor.getLastCursor()
-    return if cursor.isAtBeginningOfLine()
-
-    editor.selectLeft()
-    editor.mutateSelectedText (sel, idx) ->
-      sel.insertText ' ', select: yes
-      sel.clear()
-
-
-  delete: ->
-    editor = @activeEditor()
-    # @info editor
-
-    if @active and @cfg 'changedDelete'
-
-      # cycle thru all selections
-      for sel in editor.getSelections()
-        txt = sel.getText()
-        if txt.length > 1
-          # prepare replacement-spaces
-          spaces = Array( txt.length ).join ' '
-          range = sel.getScreenRange()
-          sel.insertText spaces
-          cursor = editor.getLastCursor()
-          # place caret to the beginning of the replacement
-          cursor.setScreenPosition [
-            range.start.row
-            range.start.column
-          ]
-        else
-          editor.delete()
-          editor.insertText ' '
-          editor.moveLeft()
-    else
-      # standard-mode
-      editor.delete()
-
-
-  pasteOver: ->
-    editor = @activeEditor()
-
-    unless @active
-      return editor.pasteText()
-
-    text = atom.clipboard.read()
-    return if text.length is 0
-
-    editor.selectRight text.length
-    range = editor.insertText text
-
-    console.log "insertText gave", range
+      
 
 
   onType: (editor) ->
     return unless @active
-    # Only trigger when user types manually
+    #
+    # only trigger when user types manually
+    #
     return unless window.event instanceof TextEvent
-
+    
     for selection in editor.getSelections()
       continue if selection.isEmpty() && selection.cursor.isAtEndOfLine()
       if selection.isEmpty()
         selection.selectRight()
+
+
+#
+# inject the implementations of behaviours.
+#
+# TODO make this smarter and check if enabled by settings.
+#
+for key, action of actions
+  OvertypeMode::[key] = action
 
 module.exports = new OvertypeMode
