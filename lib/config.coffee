@@ -1,46 +1,67 @@
 module.exports =
 
 startMode:
-  order: 5
-  title: 'Set the default mode.'
+  
+  title: 'Sets the default mode.'
   description: 'The **insert**-mode is the normal input-mode. Set this to **overwrite** if you want to startup in **overwrite**-mode.'
-  type: 'string'
-  default: 'insert'
-  enum: ['insert', 'overwrite']
+  order   : 2
+  type    : 'string'
+  default : 'insert'
+  enum    : [ 'insert', 'overwrite' ]
+  
 showIndicator:
-  order: 6
-  title: 'Show the mode-indicator inside the status-bar.'
-  description: 'Display the mode-indicator either on the **left**- or **right**-side of the status-bar. Choose **no** to hide the indicator.'
-  type: 'string'
-  default: 'right'
-  enum: ['left', 'right', 'no']
+  title: 'Display a mode-indicator inside the status-bar.'
+  description: """
+    Display a mode-indicator either on the **left**- or **right**-side of the status-bar. Choose **no** to hide the indicator entirely."""
+  order   : 3
+  type    : 'string'
+  default : 'right'
+  enum    : [ 'left', 'right', 'no' ]
+  
+enableAutocomplete:
+  title: 'Inserts via autocomplete shall overwrite.'
+  description: """
+    When enabled a **autocomplete-insert** overtypes into the buffer-line. If the remaining space on the current line does not  suffice, then a insert is done."""
+  order   : 6
+  type    : 'boolean'
+  default : on
+  
 changedDelete:
-  order: 7
-  title: 'Changes the behaviour of the delete-key.'
-  description: 'In **overwrite**-mode a keypress replaces the character under the caret with a space-char. Not changing the line-length. When the caret is at the very end of a line, then nothing happens.'
-  type: 'boolean'
-  default: on
+  title: 'Changed behaviour of the delete-key.'
+  description: """
+    In **overwrite**-mode a keypress replaces the character under the caret with a space-char. Not changing the line-length. When the caret is at the very end of a line, then nothing happens."""
+  order   : 7
+  type    : 'boolean'
+  default : on
+  
 changedBackspace:
-  order: 8
-  title: 'Changes the behaviour of the backspace-key.'
-  description: 'In **overwrite**-mode a keypress replaces the character left from the caret with a space-char. Not changing the line-length. When the caret is positioned at the very beginning of a line, then nothing happens.'
-  type: 'boolean'
-  default: on
+  title: 'Changed behaviour of the backspace-key.'
+  description: """
+    In **overwrite**-mode a keypress replaces the character left from the caret with a space-char. Not changing the line-length. When the caret is positioned at the very beginning of a line, then nothing happens."""
+  order   : 8
+  type    : 'boolean'
+  default : on
+  
 changedPaste:
-  order: 10
   title: 'Use destructive-insert behaviour for clipboard-paste operations.'
-  description: 'When enabled, any common paste-operation (Ctrl-v, Cmd-v) in **overwrite**-mode performs a *destructive*-insert starting from the current caret-position to the right. The contents of the clip-board **overwrite the existing contents**.'
-  type: 'boolean'
-  default: on
+  description: """
+    When enabled, any common paste-operation (Ctrl-v, Cmd-v) in **overwrite**-mode performs a *destructive*-insert starting from the current caret-position to the right. The contents of the clip-board **overwrite the existing contents**."""
+  order   : 10
+  type    : 'boolean'
+  default : on
+  
 changedReturn:
-  order: 11
-  title: 'Change behaviour of return-key.'
-  description: 'When enabled, a RETURN-key pressed does not insert a new-line. Instead the caret moves to the beginning of the next line.'
-  type: 'boolean'
-  default: on
+  title: 'Changed behaviour of the return-key.'
+  description: """
+    When enabled, a RETURN-key pressed does not insert a new-line. Instead the caret moves to the beginning of the next line."""
+  order   : 11
+  type    : 'boolean'
+  default : on
+  
 changeCaretStyle:
-  order: 20
   title: 'Changes the display-style of the caret.'
-  description: 'Since i use the *simple-block-cursor*-pkg, i use this setting to deactivate any changes to the caret from this package.'
-  type: 'boolean'
-  default: off
+  description: """
+    Since i use the *simple-block-cursor*-pkg, i use this setting to deactivate any changes to the caret from this package."""
+  order   : 20
+  type    : 'boolean'
+  default : off

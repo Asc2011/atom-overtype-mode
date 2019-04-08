@@ -1,7 +1,8 @@
-'atom-text-editor':
+'.platform-darwin atom-text-editor:not([mini])':
   insert    : 'overtype-mode:toggle'
   backspace : 'overtype-mode:backspace'
   delete    : 'overtype-mode:delete'
   'cmd-v'   : 'overtype-mode:paste'
 # 'atom-text-editor atom-pane-container':
 #   enter     : 'overtype-mode:test'
+ 

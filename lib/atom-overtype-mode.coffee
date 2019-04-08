@@ -6,17 +6,24 @@ actions = require './actions.coffee'
 
 class OvertypeMode
 
-  active    : no
+  active    : (editor) ->
+    unless editor
+      editor = @activeEditor()
+    
+    editor if @enabledEd.has editor.id
+
+
   cmds      : new CompositeDisposable()
   events    : new CompositeDisposable()
   config    : require './config.coffee'
   className : 'overtype-cursor'
-
+  enabledEd : new Set()
+  
   # TODO filter the commands and activate only according 
   # to user-settings. Plus observe changes to config-settings.
  
   activate: (state) ->
-
+    
     @cmds.add(
       atom.commands.add(
         'atom-text-editor',
@@ -24,15 +31,27 @@ class OvertypeMode
         method
       )
     ) for cmd, method of {
-        toggle    : () => @toggle()
-        delete    : () => @delete()
-        backspace : () => @backspace()
-        paste     : () => @paste()
+        toggle      : () => @toggle()
+        delete      : () => @delete()
+        backspace   : () => @backspace()
+        paste       : () => @paste()
+        smartInsert : () => @smartInsert()
       }
 
     @events.add(
       atom.workspace.observeTextEditors (editor) =>
         @prepareEditor editor
+    )
+    
+    @events.add(
+      atom.workspace.onDidChangeActiveTextEditor (editor) =>
+        return unless editor?
+
+        if @active editor
+          @enable()
+        else @disable()
+          
+        @gcEditors()
     )
 
 
@@ -81,14 +100,23 @@ class OvertypeMode
 
 
   toggle: ->
-    if @active then @disable()
-    else @enable()
+    
+    return unless editor = @activeEditor()
+
+    if @enabledEd.has editor.id
+      @enabledEd.delete editor.id
+      @disable()
+    else
+      @enabledEd.add editor.id
+      @enable()
 
     @updateCursorStyle() if @cfg 'changeCaretStyle'
+    
+    console.log "toggle::", @enabledEd.size, Array.from @enabledEd
 
 
   enable: ->
-    @active = yes
+
     return if 'no' == @cfg 'showIndicator'
 
     @sbTooltip = atom.tooltips.add @sbItem, title: 'Mode: Overwrite'
@@ -98,13 +126,23 @@ class OvertypeMode
 
 
   disable: ->
-    @active = no
+
     return if 'no' == @cfg 'showIndicator'
 
     @sbTooltip = atom.tooltips.add @sbItem, title: 'Mode: Insert'
     @sbItem.textContent = 'INS'
     @sbItem.classList.remove 'mode-overwrite'
     @sbItem.classList.add    'mode-insert'
+    
+  
+  gcEditors: ->
+    # 
+    # garbage collect TextEditor instances
+    #
+    ids = atom.workspace.getTextEditors().map (e) -> e.id
+    for id in Array.from @enabledEd
+      unless id in ids
+        @enabledEd.delete id
 
 
   updateCursorStyle: ->
@@ -113,7 +151,7 @@ class OvertypeMode
     for editor in atom.workspace.getTextEditors()
 
       view = atom.views.getView editor
-      if @active
+      if @active editor
         view.classList.add @className
       else
         view.classList.remove @className
@@ -122,14 +160,82 @@ class OvertypeMode
   prepareEditor: (editor) ->
     
     if @cfg 'changedReturn'
-      unless editor._insertNewline?
-        editor._insertNewline = editor.insertNewline
-        editor.insertNewline = => @enter()
       
+      unless editor.pristine_insertNewline?
+        editor.pristine_insertNewline = editor.insertNewline
+        editor.insertNewline = => @enter()
+    
+
+    editor.observeSelections (sel) =>
+    
+      unless sel.pristine_insertText?
+        sel.pristine_insertText = sel.insertText
+        
+      isAutocompleteInsert = (sel, txt) ->
+        selTxt = sel.getText()
+        selLen = selTxt.length
+        txtLen = txt.length
+        
+        ( 2 < selLen < txtLen ) and ( txt.startsWith selTxt )
+
+        
+      fitsCurrentLine = (sel, selLen, txtLen) ->
+        
+        {start} = sel.getBufferRange()
+        lineLen = sel.editor.lineTextForBufferRow(start.row).length
+        
+        ( lineLen - start.column + selLen - txtLen ) > 0
+        
+        
+      sel.insertText = ( txt, opts ) =>
+    
+        unless @active()
+          #
+          # standard-mode for paste 'selection.insertText'
+          #
+          return sel.pristine_insertText txt, opts
+        else unless @cfg 'enableAutocomplete'
+          console.log "auto-complete", @cfg 'enableAutocomplete'
+          return sel.pristine_insertText txt, opts
+        # else if sel.getText().length is 1
+        #   return sel.editor.insertText txt, opts
+    
+        console.log "sel '#{sel.getText().length}' inserts '#{txt.length}' for", sel.isEmpty(), sel
+        
+        unless isAutocompleteInsert sel, txt
+          return sel.pristine_insertText txt, opts 
+          
+        editor = sel.editor
+        selLen = sel.getText().length
+        txtLen = txt.length
+        
+        if fitsCurrentLine sel, selLen, txtLen
+          #
+          # insert-txt fits on current-line
+          #
+          sel.delete()
+          editor.selectRight txtLen - selLen
+          sel.pristine_insertText txt, opts
+          #
+        else
+          #
+          # current-line needs expansion
+          #
+          sel.delete()
+          sel.cutToEndOfLine()
+          editor.insertText txt, opts
+          editor.insertNewline()
+          editor.moveLeft()
+   
+
     @updateCursorStyle()
     
     @events.add(
-      editor.onWillInsertText => @onType editor
+      #
+      # This hooks into the TextEditor-instance
+      # and handles most regular key-strokes.
+      #
+      editor.onWillInsertText @onType
     )
 
 
@@ -141,20 +247,30 @@ class OvertypeMode
     log "has #{sels.length}-selection-len=#{selectedText.length} '#{selectedText}'"
     for sel, i in sels
       log "\tsel-#{i}", sel.getScreenRange()
+
+
+  
+  onType: (evt) =>
       
-
-
-  onType: (editor) ->
-    return unless @active
+    return unless editor = @active()
     #
     # only trigger when user types manually
     #
-    return unless window.event instanceof TextEvent
+    unless window.event instanceof TextEvent
+      console.log "event", window.event
+      console.log "wrong event-type .. returning"
+      return
+
     
-    for selection in editor.getSelections()
-      continue if selection.isEmpty() && selection.cursor.isAtEndOfLine()
-      if selection.isEmpty()
-        selection.selectRight()
+    for sel in editor.getSelections()
+      if sel.isEmpty() 
+        if sel.cursor.isAtEndOfLine()
+          console.log "\t continue" 
+          continue
+        # if sel.cursor.isAtBeginningOfLine()
+        #   console.log "\t bol"
+        #console.log "onType::sel is empty '#{sel.getText()}'"
+        sel.selectRight()
 
 
 #
@@ -162,7 +278,7 @@ class OvertypeMode
 #
 # TODO make this smarter and check if enabled by settings.
 #
-for key, action of actions
-  OvertypeMode::[key] = action
+for cmd, action of actions
+  OvertypeMode::[cmd] = action
 
 module.exports = new OvertypeMode
