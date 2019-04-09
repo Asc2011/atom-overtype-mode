@@ -1,6 +1,9 @@
 # Changelog
 
 ## 0.5.0
+- added paste-action `pasteLikeLawrence`. see [issue-#15](https://github.com/brunetton/atom-overtype-mode/issues/15)
+- added behavior of `delete-to-end-of-line`-action.
+- added behavior of `delete-to-beginning-of-line`-action.
 - mode-activation changed from a global-setting to a per-TextEditor-instance-setting.
 - fixed `auto-complete`-behaviour, tested with the *autocomplete-plus*-package. see [issue-#13](https://github.com/brunetton/atom-overtype-mode/issues/13)
 - moved all behaviours into `lib/actions.coffee`.

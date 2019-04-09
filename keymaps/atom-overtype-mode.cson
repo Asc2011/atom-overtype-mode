@@ -1,8 +1,20 @@
 '.platform-darwin atom-text-editor:not([mini])':
+  'ctrl-,'        : 'overtype-mode:toggle'
+  backspace       : 'overtype-mode:backspace'
+  delete          : 'overtype-mode:delete'
+  'cmd-v'         : 'overtype-mode:paste'
+  'cmd-backspace' : 'overtype-mode:backspace2col0'
+  'cmd-delete'    : 'overtype-mode:backspace2lastcol'
+  'ctrl-shift-v'  : 'overtype-mode:pasteLikeLawrence'
+  
+'.platform-windows atom-text-editor:not([mini])':
   insert    : 'overtype-mode:toggle'
   backspace : 'overtype-mode:backspace'
   delete    : 'overtype-mode:delete'
-  'cmd-v'   : 'overtype-mode:paste'
-# 'atom-text-editor atom-pane-container':
-#   enter     : 'overtype-mode:test'
- 
+  'ctrl-v'   :'overtype-mode:paste' 
+  
+'.platform-unix atom-text-editor:not([mini])':
+  insert    : 'overtype-mode:toggle'
+  backspace : 'overtype-mode:backspace'
+  delete    : 'overtype-mode:delete'
+  'ctrl-v'   :'overtype-mode:paste'

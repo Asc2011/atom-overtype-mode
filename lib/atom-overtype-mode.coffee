@@ -20,7 +20,7 @@ class OvertypeMode
   enabledEd : new Set()
   
   # TODO filter the commands and activate only according 
-  # to user-settings. Plus observe changes to config-settings.
+  # to user-settings. Maybe observe changes to config-settings.
  
   activate: (state) ->
     
@@ -31,11 +31,14 @@ class OvertypeMode
         method
       )
     ) for cmd, method of {
-        toggle      : () => @toggle()
-        delete      : () => @delete()
-        backspace   : () => @backspace()
-        paste       : () => @paste()
-        smartInsert : () => @smartInsert()
+        toggle            : () => @toggle()
+        delete            : () => @delete()
+        backspace         : () => @backspace()
+        paste             : () => @paste()
+        pasteLikeLawrence : () => @pasteLikeLawrence()
+        smartInsert       : () => @smartInsert()
+        backspace2col0    : () => @backspace2col0()
+        backspace2lastcol : () => @backspace2lastcol()
       }
 
     @events.add(
@@ -116,7 +119,6 @@ class OvertypeMode
 
 
   enable: ->
-
     return if 'no' == @cfg 'showIndicator'
 
     @sbTooltip = atom.tooltips.add @sbItem, title: 'Mode: Overwrite'
@@ -126,7 +128,6 @@ class OvertypeMode
 
 
   disable: ->
-
     return if 'no' == @cfg 'showIndicator'
 
     @sbTooltip = atom.tooltips.add @sbItem, title: 'Mode: Insert'
@@ -137,7 +138,7 @@ class OvertypeMode
   
   gcEditors: ->
     # 
-    # garbage collect TextEditor instances
+    # garbage collect TextEditor-instances
     #
     ids = atom.workspace.getTextEditors().map (e) -> e.id
     for id in Array.from @enabledEd
@@ -181,8 +182,8 @@ class OvertypeMode
         
       fitsCurrentLine = (sel, selLen, txtLen) ->
         
-        {start} = sel.getBufferRange()
-        lineLen = sel.editor.lineTextForBufferRow(start.row).length
+        { start } = sel.getBufferRange()
+        lineLen   = sel.editor.lineTextForBufferRow(start.row).length
         
         ( lineLen - start.column + selLen - txtLen ) > 0
         
@@ -200,7 +201,7 @@ class OvertypeMode
         # else if sel.getText().length is 1
         #   return sel.editor.insertText txt, opts
     
-        console.log "sel '#{sel.getText().length}' inserts '#{txt.length}' for", sel.isEmpty(), sel
+        # console.log "sel '#{sel.getText().length}' inserts '#{txt.length}' for", sel.isEmpty(), sel
         
         unless isAutocompleteInsert sel, txt
           return sel.pristine_insertText txt, opts 
@@ -222,10 +223,10 @@ class OvertypeMode
           # current-line needs expansion
           #
           sel.delete()
-          sel.cutToEndOfLine()
-          editor.insertText txt, opts
-          editor.insertNewline()
-          editor.moveLeft()
+          sel.selectToEndOfLine()
+          sel.pristine_insertText txt, opts
+          { end } = sel.getBufferRange()
+          editor.setCursorBufferPosition end
    
 
     @updateCursorStyle()
@@ -249,29 +250,25 @@ class OvertypeMode
       log "\tsel-#{i}", sel.getScreenRange()
 
 
-  
-  onType: (evt) =>
-      
+  onType: ( evt ) =>
+    
     return unless editor = @active()
     #
     # only trigger when user types manually
     #
-    unless window.event instanceof TextEvent
-      console.log "event", window.event
-      console.log "wrong event-type .. returning"
-      return
-
+    console.log "onType-event", evt
+    return unless window.event instanceof TextEvent
     
     for sel in editor.getSelections()
       if sel.isEmpty() 
-        if sel.cursor.isAtEndOfLine()
-          console.log "\t continue" 
-          continue
-        # if sel.cursor.isAtBeginningOfLine()
-        #   console.log "\t bol"
-        #console.log "onType::sel is empty '#{sel.getText()}'"
-        sel.selectRight()
-
+        continue if sel.cursor.isAtEndOfLine()
+        console.log "onType::selectRight"
+        if evt.text.length is 1
+          sel.selectRight()
+        else
+          for x in [1..evt.text.length]
+            console.log 'selectRight'
+            sel.selectRight()
 
 #
 # inject the implementations of behaviours.

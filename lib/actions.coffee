@@ -7,6 +7,131 @@
 
 cmd = {}
 
+cmd.pasteLikeLawrence = ->
+  console.info "pasteLikeLawrence:: starts"
+  
+  clipboardText = atom.clipboard.read()
+  single = not clipboardText.includes '\n'
+  if single or ( clipboardText.length is 0 )
+    console.info "no content or single-line to paste. returning"
+    return
+    
+  lines = clipboardText.split /\r\n|\r|\n/g
+  editor = @activeEditor()
+
+  { row, column } = editor.getCursorBufferPosition()
+  
+  if column is 0
+    newLines = lines
+  else
+    newLines = []
+    for newLine, idx in lines
+      oldLine = editor.lineTextForBufferRow row + idx
+      newLines.push oldLine[..column-1] + newLine
+  
+  try
+    pristineBuffer = editor.createCheckpoint()
+    # opts = {
+    #   autoIndentNewline: off
+    #   autoIndent       : off
+    # }
+    # 
+    # pristineCfg = {
+    #   autoIndent       : on
+    #   autoIndentOnPaste: on
+    # }
+    # for key in Object.keys pristineCfg
+    #   pristineCfg[key] = atom.config.get 'core:editor.' + key
+    #   atom.config.set 'core:editor.'+key, off
+    #   console.log "config #{key}", atom.config.get 'core:editor.'+key
+    
+    offset = 2
+    if column > 0
+      editor.deleteToBeginningOfLine()
+      editor.deleteLine()
+    else
+      editor.deleteLine()
+      offset = 2
+    
+    # console.log "newLines::\n"
+    # newLines.map (l) ->
+    #   console.log "  #{l.length}", l 
+      
+    for line in newLines
+      editor.insertText line #, opts
+      cursorEnds = editor.getCursorBufferPosition()
+      editor.pristine_insertNewline()
+      
+      if editor.getCursorBufferPosition().column > 0
+        editor.moveToBeginningOfLine()
+        editor.deleteToEndOfLine()
+
+    editor.deleteLine() for x in [offset..newLines.length]
+
+    editor.setCursorBufferPosition cursorEnds
+
+    editor.groupChangesSinceCheckpoint pristineBuffer
+    console.info "pasteLikeLawrence:: finished without error."
+    
+  catch error
+    console.error "pasteLikeLawrence:: error was:", error
+    editor.revertToCheckpoint pristineBuffer
+
+
+cmd.backspace2col0 = ->
+  # TODO add a setting for this 
+  
+  unless (editor = @active()) # or (off is @cfg 'changedBackspace2Col0')
+    #
+    # standard-mode for delete 'editor:delete-to-beginning-of-line'
+    #
+    return @activeEditor().deleteToBeginningOfLine()
+    
+  console.info "backspace2col0::start"
+  try
+    pristineBuffer = editor.createCheckpoint()
+    
+    { row, column } = editor.getCursorBufferPosition()
+    newRange = [ [row, 0], [row, column] ]
+    newText = ' '.repeat column
+    editor.setTextInBufferRange newRange, newText
+    editor.setCursorBufferPosition [row, 0]
+    editor.groupChangesSinceCheckpoint pristineBuffer
+    
+  catch error
+    console.error "backspace2col0:: had error:", error
+    editor.revertToCheckpoint pristineBuffer
+
+
+
+cmd.backspace2lastcol = ->
+  
+  # TODO add a setting for this 
+  unless (editor = @active()) # or (off is @cfg 'changedBackspace2Col0')
+    #
+    # standard-mode for delete 'editor:delete-to-end-of-line'
+    #
+    return @activeEditor().deleteToEndOfLine()
+
+  console.log "backspace2lastcol::start"
+  try
+    pristineBuffer = editor.createCheckpoint()
+    
+    { row, column } = editor.getCursorBufferPosition()
+    
+    lineLen = editor.lineTextForBufferRow( row ).length
+    newRange = [
+      [ row, column ],
+      [ row, lineLen ]
+    ]
+    newText = ' '.repeat lineLen-column
+    editor.setTextInBufferRange newRange, newText
+  
+  catch error
+    console.error "backspace2lastcol:: had error:", error
+    editor.revertToCheckpoint pristineBuffer
+
+
 cmd.enter = ->
   #
   # This implementation performs a carriage-return to the 
@@ -81,8 +206,6 @@ cmd.delete = ->
   # A second hit will delete the space-char.
   #
   
-  #console.log "delete", window.event
-  
   unless (editor = @active()) or (off is @cfg 'changedDelete')
     #
     # standard-mode for delete 'core:delete'
@@ -113,7 +236,6 @@ cmd.delete = ->
         range.start.column
       ]
     else
-      # console.log "\tdelete-short #{txt.length}"
       line = cursor.getCurrentBufferLine()
       char = line[ cursor.getBufferColumn() ]
       #
@@ -198,11 +320,10 @@ cmd.smartInsert = ->
 ind = ( line ) ->
   [ indent ] = /^ */.exec line
   indent.length
-  
+
 
 cmd._paste = ->
   
-  #txt = sel.getText()
   cursor = editor.getLastCursor()
 
   unless @active()
