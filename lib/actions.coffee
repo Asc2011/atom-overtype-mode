@@ -11,79 +11,93 @@ cmd.pasteLikeLawrence = ->
   console.info "pasteLikeLawrence:: starts"
   
   clipboardText = atom.clipboard.read()
-  single = not clipboardText.includes '\n'
-  if single or ( clipboardText.length is 0 )
+  return if clipboardText.length is 0
+  
+  # TODO how can i get the line-ending in-use from atom ?
+  #
+  # general-purpose-text-splitter
+  #
+  lineEnding = @getLineEnding()
+  lines = clipboardText.split lineEnding
+  
+  if lines.length is 1
     console.info "no content or single-line to paste. returning"
     return
     
-  lines = clipboardText.split /\r\n|\r|\n/g
+  # editor = atom.workspace.getActiveTextEditor()
   editor = @activeEditor()
-
+  #
+  # on what column are we ?
+  #
   { row, column } = editor.getCursorBufferPosition()
   
   if column is 0
+    #
+    # caret position is at beginning-of-line.
+    # nothing to add to the clipboard-text.
+    #
     newLines = lines
   else
+    #
+    # copy the line-beginnings.
+    #
     newLines = []
     for newLine, idx in lines
       oldLine = editor.lineTextForBufferRow row + idx
-      newLines.push oldLine[..column-1] + newLine
+      leftPrefix = oldLine[ ...column ]
+      if leftPrefix.length < column 
+        spc = ' '.repeat column - leftPrefix.length
+        leftPrefix += spc
+        
+      newLines.push leftPrefix + newLine
   
   try
+    #
+    # save the buffer-state.
+    #
     pristineBuffer = editor.createCheckpoint()
-    # opts = {
-    #   autoIndentNewline: off
-    #   autoIndent       : off
-    # }
-    # 
-    # pristineCfg = {
-    #   autoIndent       : on
-    #   autoIndentOnPaste: on
-    # }
-    # for key in Object.keys pristineCfg
-    #   pristineCfg[key] = atom.config.get 'core:editor.' + key
-    #   atom.config.set 'core:editor.'+key, off
-    #   console.log "config #{key}", atom.config.get 'core:editor.'+key
     
-    offset = 2
-    if column > 0
-      editor.deleteToBeginningOfLine()
-      editor.deleteLine()
-    else
-      editor.deleteLine()
-      offset = 2
+    lastLineIdx = row + newLines.length - 1
+    lastLine = editor.lineTextForBufferRow lastLineIdx
     
-    # console.log "newLines::\n"
-    # newLines.map (l) ->
-    #   console.log "  #{l.length}", l 
-      
-    for line in newLines
-      editor.insertText line #, opts
-      cursorEnds = editor.getCursorBufferPosition()
-      editor.pristine_insertNewline()
-      
-      if editor.getCursorBufferPosition().column > 0
-        editor.moveToBeginningOfLine()
-        editor.deleteToEndOfLine()
-
-    editor.deleteLine() for x in [offset..newLines.length]
-
-    editor.setCursorBufferPosition cursorEnds
-
+    # define the region to overwrite.
+    #
+    range = [ 
+      [ row, 0 ],
+      [ lastLineIdx, lastLine.length ]
+    ]
+    # replace the contents of the overwrite-region.
+    #
+    # FIXME need the line-ending to use here ?
+    #
+    { end } = editor.setTextInBufferRange(
+      range, 
+      newLines.join lineEnding
+    )
+    editor.setCursorBufferPosition end
+    #
+    # merge all changes into a single 'undo'-operation.
+    #
     editor.groupChangesSinceCheckpoint pristineBuffer
-    console.info "pasteLikeLawrence:: finished without error."
-    
+    console.info 'pasteLikeLawrence:: finished without error.'
+    #
   catch error
-    console.error "pasteLikeLawrence:: error was:", error
+    #
+    # smth went wrong ?
+    console.error "pasteLikeLawrence:: error was", error
+    #
+    # revert all changes to the buffer.
+    #
     editor.revertToCheckpoint pristineBuffer
 
 
 cmd.backspace2col0 = ->
-  # TODO add a setting for this 
-  
+  #
+  # TODO add a setting for this.
+  #
   unless (editor = @active()) # or (off is @cfg 'changedBackspace2Col0')
     #
-    # standard-mode for delete 'editor:delete-to-beginning-of-line'
+    # standard-mode for 'editor:delete-to-beginning-of-line'
     #
     return @activeEditor().deleteToBeginningOfLine()
     
@@ -99,17 +113,17 @@ cmd.backspace2col0 = ->
     editor.groupChangesSinceCheckpoint pristineBuffer
     
   catch error
-    console.error "backspace2col0:: had error:", error
+    console.error 'backspace2col0:: had error:', error
     editor.revertToCheckpoint pristineBuffer
-
 
 
 cmd.backspace2lastcol = ->
   
-  # TODO add a setting for this 
-  unless (editor = @active()) # or (off is @cfg 'changedBackspace2Col0')
+  # TODO add a setting for this.
+  unless editor = @active() 
+    # or (off is @cfg 'changedBackspace2Col0')
     #
-    # standard-mode for delete 'editor:delete-to-end-of-line'
+    # standard-mode for 'editor:delete-to-end-of-line'
     #
     return @activeEditor().deleteToEndOfLine()
 
@@ -205,7 +219,6 @@ cmd.delete = ->
   # Basically the first hit of the delete-key overwrites with a space.
   # A second hit will delete the space-char.
   #
-  
   unless (editor = @active()) or (off is @cfg 'changedDelete')
     #
     # standard-mode for delete 'core:delete'

@@ -1,7 +1,9 @@
 # Changelog
 
 ## 0.5.0
+- fixed bug during deactivation and cleanup of resources.
 - added paste-action `pasteLikeLawrence`. see [issue-#15](https://github.com/brunetton/atom-overtype-mode/issues/15)
+  - reworked, operates with Ranges -> indent-troubles gone.
 - added behavior of `delete-to-end-of-line`-action.
 - added behavior of `delete-to-beginning-of-line`-action.
 - mode-activation changed from a global-setting to a per-TextEditor-instance-setting.
@@ -17,6 +19,7 @@
   - added option to enable/disable the cursor-styling.
   - added option to hide and/or position the `mode-indicator` in the status-bar.
   - made all options configurable.
+  - setting-changes are now observed and some changes already perform immediate action.
 
 ## 0.4.0
 - Fixed error in Atom 1.19

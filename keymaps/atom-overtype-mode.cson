@@ -1,4 +1,5 @@
 '.platform-darwin atom-text-editor:not([mini])':
+  'strg'          : 'overtype-mode:test'
   'ctrl-,'        : 'overtype-mode:toggle'
   backspace       : 'overtype-mode:backspace'
   delete          : 'overtype-mode:delete'
@@ -7,13 +8,13 @@
   'cmd-delete'    : 'overtype-mode:backspace2lastcol'
   'ctrl-shift-v'  : 'overtype-mode:pasteLikeLawrence'
   
-'.platform-windows atom-text-editor:not([mini])':
+'.platform-win32 atom-text-editor:not([mini])':
   insert    : 'overtype-mode:toggle'
   backspace : 'overtype-mode:backspace'
   delete    : 'overtype-mode:delete'
   'ctrl-v'   :'overtype-mode:paste' 
   
-'.platform-unix atom-text-editor:not([mini])':
+'.platform-linux atom-text-editor:not([mini])':
   insert    : 'overtype-mode:toggle'
   backspace : 'overtype-mode:backspace'
   delete    : 'overtype-mode:delete'

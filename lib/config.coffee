@@ -61,7 +61,7 @@ changedReturn:
 changeCaretStyle:
   title: 'Changes the display-style of the caret.'
   description: """
-    Since i use the *simple-block-cursor*-pkg, i use this setting to deactivate any changes to the caret from this package."""
+    Since i use the *simple-block-cursor*-pkg, one can use this setting to deactivate any changes to the caret-style from this package."""
   order   : 20
   type    : 'boolean'
-  default : off
+  default : on

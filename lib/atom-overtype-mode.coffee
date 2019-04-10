@@ -2,28 +2,66 @@
 { CompositeDisposable } = require 'atom'
 
 actions = require './actions.coffee'
-
+pkg     = require '../package.json'
 
 class OvertypeMode
 
-  active    : (editor) ->
-    unless editor
+  statusBar   : null
+  cmds        : new CompositeDisposable()
+  events      : new CompositeDisposable()
+  config      : require './config.coffee'
+  caretClass  : 'overtype-cursor'
+  enabledEd   : new Set() # keeps editor-instance-id's
+  gcEditors   : -> # garbage collect TextEditor-instances
+    ids = atom.workspace.getTextEditors().map (e) -> e.id
+    for id in Array.from @enabledEd
+      unless id in ids
+        @enabledEd.delete id
+  active      : (editor) ->  # is given editor active ?
+    unless editor?
       editor = @activeEditor()
-    
+      return unless editor?
     editor if @enabledEd.has editor.id
-
-
-  cmds      : new CompositeDisposable()
-  events    : new CompositeDisposable()
-  config    : require './config.coffee'
-  className : 'overtype-cursor'
-  enabledEd : new Set()
   
-  # TODO filter the commands and activate only according 
-  # to user-settings. Maybe observe changes to config-settings.
- 
+  settingsObserver: (setting) ->
+    
+    switch setting.key
+      
+      when 'showIndicator'
+        if setting.new is 'no'
+          @sbItem.classList.add 'hide-indicator'
+        else
+          @consumeStatusBar @statusBar
+          
+      when 'changeCaretStyle'
+        @updateCursorStyle()
+      
+      else
+        console.log "no action for '#{setting.key}'"
+
+
   activate: (state) ->
     
+    @events.add(
+      atom.config.onDidChange pkg.name, ({ oldValue, newValue }) =>
+
+        for key, val of newValue
+          unless oldValue[key] is val
+            setting =
+              key     : key
+              old     : oldValue[ key ]
+              new     : val
+              
+            break
+            
+        console.log 'change was', setting
+        
+        @settingsObserver setting
+    )
+    
+    # TODO filter the commands and activate only according 
+    # to user-settings. 
+    #
     @cmds.add(
       atom.commands.add(
         'atom-text-editor',
@@ -31,6 +69,7 @@ class OvertypeMode
         method
       )
     ) for cmd, method of {
+        #test              : () => @test()
         toggle            : () => @toggle()
         delete            : () => @delete()
         backspace         : () => @backspace()
@@ -56,57 +95,87 @@ class OvertypeMode
           
         @gcEditors()
     )
-
+    
+  test: -> console.log "test called"
 
   cfg: (key) ->
-    atom.config.get 'atom-overtype-mode.' + key
+    atom.config.get [ pkg.name, key ].join '.'
 
   activeEditor: ->
     atom.workspace.getActiveTextEditor()
 
+
   consumeStatusBar: ( statusBar ) ->
+    @statusBar = statusBar
+    @setupIndicator()
+    @enable() if 'overwrite' is @cfg 'startMode'
 
-    @sbItem?.dispose()
+  getLineEnding: ->
+    
+    codes = { 'LF': '\n', 'CRLF': '\r\n' }
+    
+    tiles = @statusBar.getRightTiles()
+    for tile in tiles.concat @statusBar.getLeftTiles()
+      continue unless tile.item?.element?.classList?.contains 'line-ending-tile'
+      lineEnding = tile.item.element.text
+      break
 
-    if 'no' isnt @cfg 'showIndicator'
+    codes[ lineEnding or 'LF' ]
+
+
+  setupIndicator: ->
+    
+    unless @sbItem?
       @sbItem = document.createElement 'div'
       @sbItem.classList.add 'inline-block'
       @sbItem.classList.add 'mode-insert'
       @sbItem.textContent = 'INS'
       @sbItem.addEventListener 'click', => @toggle()
-
-      @sbTooltip?.dispose()
       @sbTooltip = atom.tooltips.add @sbItem, title: 'Mode: Insert'
-
-    if 'left' == @cfg 'showIndicator'
-      @sbTile = statusBar.addLeftTile
-        item     : @sbItem
-        priority : 50
-    else if 'right' == @cfg 'showIndicator'
-      @sbTile = statusBar.addRightTile
-        item     : @sbItem
-        priority : 50
-
-    @enable() if 'overwrite' == @cfg 'startMode'
+    
+    @sbTile.destroy() if @sbTile?
+    
+    switch @cfg 'showIndicator'
+      
+      when 'left'
+        @sbItem.classList.remove 'hide-indicator'
+        @sbTile = @statusBar.addLeftTile
+          item     : @sbItem
+          priority : 50
+          
+      when 'right'
+        @sbItem.classList.remove 'hide-indicator'
+        @sbTile = @statusBar.addRightTile
+          item     : @sbItem
+          priority : 50
+          
+      when 'no'
+        @sbItem.classList.add 'hide-indicator'
 
 
   deactivate: ->
+    
     @disable()
     @events.dispose()
     @cmds.dispose()
 
-    @sbItem?.destroy()
     @sbTile?.destroy()
-    if @sbItem?
-      @sbItem = null
-      @sbTile = null
+    @sbItem = null if @sbItem?
+    
+    atom.workspace.getTextEditors().map (editor) ->
+      if editor.pristine_insertNewline?
+        editor.enter = editor.pristine_insertNewline
+        editor.pristine_insertNewline = null
+    
+    @enabledEd.clear()
 
 
   toggle: ->
-    
     return unless editor = @activeEditor()
+    
+    @getLineEnding()
 
-    if @enabledEd.has editor.id
+    if @active editor
       @enabledEd.delete editor.id
       @disable()
     else
@@ -115,14 +184,15 @@ class OvertypeMode
 
     @updateCursorStyle() if @cfg 'changeCaretStyle'
     
-    console.log "toggle::", @enabledEd.size, Array.from @enabledEd
+    console.log 'toggle::', @enabledEd.size, Array.from @enabledEd
 
 
   enable: ->
     return if 'no' == @cfg 'showIndicator'
-
+  
     @sbTooltip = atom.tooltips.add @sbItem, title: 'Mode: Overwrite'
     @sbItem.textContent = 'DEL'
+    @sbItem.classList.remove 'hide-indictator' if @hidden
     @sbItem.classList.remove 'mode-insert'
     @sbItem.classList.add    'mode-overwrite'
 
@@ -132,18 +202,9 @@ class OvertypeMode
 
     @sbTooltip = atom.tooltips.add @sbItem, title: 'Mode: Insert'
     @sbItem.textContent = 'INS'
+    @sbItem.classList.remove 'hide-indictator' if @hidden
     @sbItem.classList.remove 'mode-overwrite'
     @sbItem.classList.add    'mode-insert'
-    
-  
-  gcEditors: ->
-    # 
-    # garbage collect TextEditor-instances
-    #
-    ids = atom.workspace.getTextEditors().map (e) -> e.id
-    for id in Array.from @enabledEd
-      unless id in ids
-        @enabledEd.delete id
 
 
   updateCursorStyle: ->
@@ -153,9 +214,9 @@ class OvertypeMode
 
       view = atom.views.getView editor
       if @active editor
-        view.classList.add @className
+        view.classList.add @caretClass
       else
-        view.classList.remove @className
+        view.classList.remove @caretClass
 
 
   prepareEditor: (editor) ->
@@ -179,7 +240,7 @@ class OvertypeMode
         
         ( 2 < selLen < txtLen ) and ( txt.startsWith selTxt )
 
-        
+
       fitsCurrentLine = (sel, selLen, txtLen) ->
         
         { start } = sel.getBufferRange()
@@ -204,7 +265,7 @@ class OvertypeMode
         # console.log "sel '#{sel.getText().length}' inserts '#{txt.length}' for", sel.isEmpty(), sel
         
         unless isAutocompleteInsert sel, txt
-          return sel.pristine_insertText txt, opts 
+          return sel.pristine_insertText txt, opts
           
         editor = sel.editor
         selLen = sel.getText().length
@@ -254,19 +315,18 @@ class OvertypeMode
     
     return unless editor = @active()
     #
-    # only trigger when user types manually
+    # only trigger when user types manually.
     #
-    console.log "onType-event", evt
     return unless window.event instanceof TextEvent
     
     for sel in editor.getSelections()
-      if sel.isEmpty() 
+      if sel.isEmpty()
         continue if sel.cursor.isAtEndOfLine()
         console.log "onType::selectRight"
         if evt.text.length is 1
           sel.selectRight()
         else
-          for x in [1..evt.text.length]
+          for x in [ 1..evt.text.length ]
             console.log 'selectRight'
             sel.selectRight()
 
