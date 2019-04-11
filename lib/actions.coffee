@@ -1,22 +1,41 @@
-###
-
-  Ihis file contains the implementations of actions taken
-  on a particular keypress.
- 
-###
+log = console.log 
 
 cmd = {}
+
+overwriteSelection = ( sel, caretPos='start', keepSelection=yes ) ->
+  
+  text   = sel.getText()
+  space  = ' '.repeat text.length
+  range  = sel.getBufferRange()
+  sel.insertText space
+  #
+  # keep the selection, but place the caret
+  # at the beginning or end.
+  #
+  sel.setBufferRange { 
+    start : range[ caretPos ]
+    end   : range[ caretPos ]
+  }
+  sel.clear() unless keepSelection
+
+
+cmd.duplicateLines = ->
+
+  unless editor = @active()
+    #
+    # standard-mode for 'editor:newline-below'
+    #
+    return @activeEditor().insertNewlineBelow()
+
+  editor.duplicateLines()
+
 
 cmd.pasteLikeLawrence = ->
   console.info "pasteLikeLawrence:: starts"
   
   clipboardText = atom.clipboard.read()
   return if clipboardText.length is 0
-  
-  # TODO how can i get the line-ending in-use from atom ?
-  #
-  # general-purpose-text-splitter
-  #
+
   lineEnding = @getLineEnding()
   lines = clipboardText.split lineEnding
   
@@ -24,7 +43,6 @@ cmd.pasteLikeLawrence = ->
     console.info "no content or single-line to paste. returning"
     return
     
-  # editor = atom.workspace.getActiveTextEditor()
   editor = @activeEditor()
   #
   # on what column are we ?
@@ -44,6 +62,7 @@ cmd.pasteLikeLawrence = ->
     newLines = []
     for newLine, idx in lines
       oldLine = editor.lineTextForBufferRow row + idx
+      
       leftPrefix = oldLine[ ...column ]
       if leftPrefix.length < column 
         spc = ' '.repeat column - leftPrefix.length
@@ -53,30 +72,29 @@ cmd.pasteLikeLawrence = ->
   
   try
     #
-    # save the buffer-state.
+    # save current buffer-state.
     #
     pristineBuffer = editor.createCheckpoint()
     
     lastLineIdx = row + newLines.length - 1
     lastLine = editor.lineTextForBufferRow lastLineIdx
-    
+    #
     # define the region to overwrite.
     #
-    range = [ 
+    targetRange = [ 
       [ row, 0 ],
       [ lastLineIdx, lastLine.length ]
     ]
+    #
     # replace the contents of the overwrite-region.
     #
-    # FIXME need the line-ending to use here ?
-    #
     { end } = editor.setTextInBufferRange(
-      range, 
+      targetRange,
       newLines.join lineEnding
     )
     editor.setCursorBufferPosition end
     #
-    # merge all changes into a single 'undo'-operation.
+    # merge change into a single 'undo'-operation.
     #
     editor.groupChangesSinceCheckpoint pristineBuffer
     console.info 'pasteLikeLawrence:: finished without error.'
@@ -101,7 +119,6 @@ cmd.backspace2col0 = ->
     #
     return @activeEditor().deleteToBeginningOfLine()
     
-  console.info "backspace2col0::start"
   try
     pristineBuffer = editor.createCheckpoint()
     
@@ -159,7 +176,7 @@ cmd.enter = ->
     # standard-mode for enter 'core:insertNewline'
     #
     return @activeEditor().pristine_insertNewline()
-
+  
   cursor    = editor.getLastCursor()
   lastRow   = editor.getLastBufferRow()
   cursorPos = cursor.getBufferPosition()
@@ -194,18 +211,19 @@ cmd.backspace = ->
     #
     return @activeEditor().backspace()
   
-  cursor = editor.getLastCursor()
-  if cursor.isAtBeginningOfLine()
-
-    while not cursor.hasPrecedingCharactersOnLine()
-      cursor.moveLeft()
-      { column, row } = cursor.getBufferPosition()
-      break if row == 0
+  editor.mutateSelectedText ( sel, idx ) ->
     
-  editor.selectLeft()
-  editor.mutateSelectedText (sel, idx) ->
-    sel.insertText ' ', select: yes
-    sel.clear()
+    if sel.isEmpty()
+      cursor = sel.cursor
+      
+      while cursor.isAtBeginningOfLine()
+        cursor.moveLeft()
+      
+      sel.selectLeft()
+      sel.insertText ' '
+      cursor.moveLeft()
+      
+    else overwriteSelection sel
 
 
 cmd.delete = ->
@@ -224,52 +242,38 @@ cmd.delete = ->
     # standard-mode for delete 'core:delete'
     #
     return @activeEditor().delete()
-
-  #
-  # cycle thru all selections
-  #
-  for sel in editor.getSelections()
+  
+  editor.mutateSelectedText ( sel, idx ) ->
     
-    txt = sel.getText()
-    cursor = editor.getLastCursor()
-    
-    if txt.length > 1
+    unless sel.isEmpty()
       #
-      # prepare replacement-spaces
+      # there is selected-text.
       #
-      spaces = ' '.repeat txt.length
-      range = sel.getScreenRange()
-      sel.insertText spaces
+      return overwriteSelection sel
+    #
+    # no text selected.
+    #
+    cur  = sel.cursor
+    col  = cur.getBufferColumn()
+    char = cur.getCurrentBufferLine()[col]
+    #
+    sel.delete()
+    #
+    unless editor.hasMultipleCursors()
       #
-      # place the caret to the beginning
-      # of the replacement-region.
+      # only in single-cursor-mode,
+      # test for space under cursor 
       #
-      cursor.setScreenPosition [
-        range.start.row
-        range.start.column
-      ]
-    else
-      line = cursor.getCurrentBufferLine()
-      char = line[ cursor.getBufferColumn() ]
-      #
-      # char is the char under the caret.
-      # its <undefined> for line-feeds / '\n'.
-      #
-      return unless char
-      
-      editor.delete()
-      
-      unless char is ' '
-        #
-        # special-case: space under the caret.
-        #
-        editor.insertText ' '
-        editor.moveLeft()
+      return if char is ' '
+    #
+    # always overwrite in multi-caret-mode.
+    #
+    range = sel.getBufferRange()
+    editor.setTextInBufferRange range, ' '
+    sel.cursor.moveLeft()
 
 
 cmd.paste = ->
-
-  console.log "in paste"
 
   unless (editor = @active()) or (off is @cfg 'changedPaste')
     #
@@ -280,15 +284,110 @@ cmd.paste = ->
   clipboardText = atom.clipboard.read()
   single = clipboardText.includes '\n'
   return if clipboardText.length is 0
-    
+  
   cursor = editor.getLastCursor()
   rc_pos = cursor.getScreenPosition()
   editor.selectRight clipboardText.length
   editor.insertText clipboardText
+  log "it paste stupid"
   cursor.setScreenPosition rc_pos
 
 
 cmd.smartInsert = ->
+  #
+  # This mode tries to make use of 'spaced'-areas on the 
+  # current line. A spaced-area comprises of at least two 
+  # or more consecutive space-chars.
+  #
+  getIndent = ( line ) ->
+    try
+      [ spaces ] = /^ +/.exec line
+      return spaces.length
+    0
+
+
+  hasSpacedArea = ( line, start=0 ) ->
+    
+    indent = getIndent line
+    areas = [ [indent, line.length, line] ]
+    
+    start = indent if (start < indent)
+    end = line.length
+    
+    c = 0
+    until start == end
+      #log "until has start=#{start}"
+      char = line[start]
+      log "start=#{start} char='#{char}' c=#{c}"
+      break unless char?
+      
+      if char is ' '
+        c++
+      else
+        if c > 1
+          areas.push { s: start-c, e: start, b: char }
+        c = 0
+      
+      start++
+      
+    log "ends with start=#{start}"
+    areas
+
+  
+  hasStructure = ( editor, bufferRow ) ->
+    
+    isChar  = (char) -> /[a-zA-Z@]/.test char
+    isDelim = (char) -> /[\(\)"'\{\}\[\]+-]/.test char
+    
+    similar = ( row1, row2) ->
+      l1 = row1[..]; l2 = row2[..] 
+      [ l1Indent, l1Len, line1 ] = l1.shift()
+      [ l2Indent, l2Len, line2 ] = l2.shift()
+
+      return no unless l1Indent is l2Indent
+      
+      truth = no
+      unless l1.length
+        [l1, l2] = [l2, l1] if l2.length > 0
+        
+      for area, i in l1
+        { s:s1, e:e1, b:b1 } = area
+        unless l2[i]?
+          # log "boundary-cmp '#{b1}' '#{line2[e1]}'", e1
+          return yes if ( b1 is line2[e1] )
+        else
+          { s:s2, e:e2, b:b2 } = l2[i]
+          continue if e1 isnt e2
+          return no if b1 isnt b2
+          truth = yes if (b1 is b2) and (e1 is e2)
+        
+      #log "similar:: returns", truth
+      truth
+
+
+    truth = []
+    line = editor.lineTextForBufferRow bufferRow
+    a1 = hasSpacedArea line 
+    above = editor.lineTextForBufferRow bufferRow - 1
+    a2 = hasSpacedArea above
+    log line
+    log above
+    log "------"
+    log a1
+    log a2
+    truth.push similar a1, a2
+    
+    below = editor.lineTextForBufferRow bufferRow + 1
+    a3 = hasSpacedArea below
+    truth.push similar a1, a3
+    truth
+  
+  editor = @activeEditor()
+  { row, column } = editor.getCursorBufferPosition()
+  
+  console.log hasStructure editor, row
+
+  return
   
   sim = (l1, l2) ->
     l1 = l1.split ''
@@ -328,11 +427,6 @@ cmd.smartInsert = ->
   console.log "indent is", ind(t0)
   
   sim t0, t1
-
-
-ind = ( line ) ->
-  [ indent ] = /^ */.exec line
-  indent.length
 
 
 cmd._paste = ->

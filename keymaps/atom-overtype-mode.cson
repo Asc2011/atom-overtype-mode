@@ -1,5 +1,4 @@
 '.platform-darwin atom-text-editor:not([mini])':
-  'strg'          : 'overtype-mode:test'
   'ctrl-,'        : 'overtype-mode:toggle'
   backspace       : 'overtype-mode:backspace'
   delete          : 'overtype-mode:delete'
@@ -12,10 +11,10 @@
   insert    : 'overtype-mode:toggle'
   backspace : 'overtype-mode:backspace'
   delete    : 'overtype-mode:delete'
-  'ctrl-v'   :'overtype-mode:paste' 
+  'ctrl-v'  : 'overtype-mode:paste' 
   
 '.platform-linux atom-text-editor:not([mini])':
   insert    : 'overtype-mode:toggle'
   backspace : 'overtype-mode:backspace'
   delete    : 'overtype-mode:delete'
-  'ctrl-v'   :'overtype-mode:paste'
+  'ctrl-v'  : 'overtype-mode:paste'

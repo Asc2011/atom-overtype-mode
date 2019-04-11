@@ -1,14 +1,14 @@
 # Changelog
 
 ## 0.5.0
-- fixed bug during deactivation and cleanup of resources.
+- fixed bug during cleanup of resources in `.deactivate()`. see [issue-#22](https://github.com/brunetton/atom-overtype-mode/issues/22)
 - added paste-action `pasteLikeLawrence`. see [issue-#15](https://github.com/brunetton/atom-overtype-mode/issues/15)
   - reworked, operates with Ranges -> indent-troubles gone.
 - added behavior of `delete-to-end-of-line`-action.
 - added behavior of `delete-to-beginning-of-line`-action.
 - mode-activation changed from a global-setting to a per-TextEditor-instance-setting.
-- fixed `auto-complete`-behaviour, tested with the *autocomplete-plus*-package. see [issue-#13](https://github.com/brunetton/atom-overtype-mode/issues/13)
-- moved all behaviours into `lib/actions.coffee`.
+- fixed `auto-complete`-behaviour, tested with *autocomplete-plus*-pkg. see [issue-#13](https://github.com/brunetton/atom-overtype-mode/issues/13)
+- moved all behaviours into `lib/actions.coffee`
 - added `mode-indicator` inside the atom-status-bar. Implements [issue-#19](https://github.com/brunetton/atom-overtype-mode/issues/19)
 - adjusted behaviour of `backspace`-key. Partial-fix for [issue-#12](https://github.com/brunetton/atom-overtype-mode/issues/12)
 - adjusted behaviour of `delete`-key.
@@ -19,7 +19,9 @@
   - added option to enable/disable the cursor-styling.
   - added option to hide and/or position the `mode-indicator` in the status-bar.
   - made all options configurable.
-  - setting-changes are now observed and some changes already perform immediate action.
+  - setting-changes are now observed. Listed below perform immediate action:
+    - _showIndicator_ -> to position or disable status-bar-indicator.
+    - _changeCaretStyle_ -> dis-/enable caret-styleing.
 
 ## 0.4.0
 - Fixed error in Atom 1.19

@@ -1,7 +1,7 @@
 
 ## 0.5.0 Release
 
-Aside some bug-fixes, this release carries some crucial changes. Most of these are by default deactivated, in order to let you choose the ones you prefer. Use the new settings-section to try out new behaviors of _Backspace-/Delete-/Paste_-actions or to enable insertions triggered by *autocomplete*.
+Aside some bug-fixes, this release features some crucial changes. Most of these are by default disabled, in order to let you choose the ones you prefer. Use the new settings-section to try out new behaviors of _Backspace-/Delete-/Paste_-actions or to enable insertions triggered by *autocomplete*.
 
 ### Main idea
 The concept behind and reason for this mode-of-operation is providing support for editing texts that already carry a structure, that one wants to preserve while editing. This might be indented-source-code or table-like documents. **SublimeText**, **TextPad** and other editors offer such a mode-of-operation commonly found by the name _'overwrite'_-mode.
@@ -12,7 +12,7 @@ In that spirit this package tries to avoid making changes to the layout of the d
 - using **autocomplete** is now possible. It destructively overwrites as-many-chars-as-needed to the right of the caret. If the current-line does not provide enough space to insert the auto-completion-term, then it will expand the current-line. Thus preserving the structure.
  
  
-The status-bar-indicator is enabled by default. It will by default display on the right-side of the status-bar. Other options are **left** oder **hide**. It will start in `Insert`-Mode '**INS**', which is the standard-mode of operation in Atom. When `overtype`-mode gets activated, the status-bar shows '**Del**'. The mode-activation ~~used to be global~~ for all text-editors. This has changed, it can and has to be be toggled on/off seperatly for each text-editor-instance. Besides the keyboard-shortcut for toggling, one can mouse-click the mode-indicator.
+The status-bar-indicator is enabled by default. It will by default display on the right-side of the status-bar. Other options are **left** oder **hide**. It will start in `Insert`-Mode '**INS**', which is the standard-mode of operation in Atom. When `overtype`-mode gets activated, the status-bar shows '**DEL**'. The mode-activation ~~used to be global~~ for all text-editors. This has changed, it can and has to be be toggled on/off seperatly for each text-editor-instance. Besides the keyboard-shortcut for toggling, one can mouse-click the mode-indicator in the status-bar.
 As said above, the package (auto-) starts in `Insert`-mode. This can be changed via the settings-section.
 
 #### Contributions & Additions & Extensions

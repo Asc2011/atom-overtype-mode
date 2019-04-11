@@ -1,3 +1,4 @@
+log = console.log  
 
 { CompositeDisposable } = require 'atom'
 
@@ -6,7 +7,8 @@ pkg     = require '../package.json'
 
 class OvertypeMode
 
-  statusBar   : null
+  statusBar   : null # holds a reference to the status-bar.
+  minComplete : atom.config.get 'autocomplete-plus.minimumWordLength'
   cmds        : new CompositeDisposable()
   events      : new CompositeDisposable()
   config      : require './config.coffee'
@@ -42,6 +44,9 @@ class OvertypeMode
 
   activate: (state) ->
     
+    # st = atom.config.get 'editor.atomicSoftTabs'
+    # log "atomicSoftTabs active 11 ? ", st
+    
     @events.add(
       atom.config.onDidChange pkg.name, ({ oldValue, newValue }) =>
 
@@ -69,11 +74,11 @@ class OvertypeMode
         method
       )
     ) for cmd, method of {
-        #test              : () => @test()
         toggle            : () => @toggle()
         delete            : () => @delete()
         backspace         : () => @backspace()
-        paste             : () => @paste()
+        paste             : () => @paste()  
+        duplicateLines    : () => @duplicateLines()
         pasteLikeLawrence : () => @pasteLikeLawrence()
         smartInsert       : () => @smartInsert()
         backspace2col0    : () => @backspace2col0()
@@ -96,7 +101,6 @@ class OvertypeMode
         @gcEditors()
     )
     
-  test: -> console.log "test called"
 
   cfg: (key) ->
     atom.config.get [ pkg.name, key ].join '.'
@@ -222,23 +226,25 @@ class OvertypeMode
   prepareEditor: (editor) ->
     
     if @cfg 'changedReturn'
-      
+    
       unless editor.pristine_insertNewline?
         editor.pristine_insertNewline = editor.insertNewline
         editor.insertNewline = => @enter()
-    
-
+        
+      
     editor.observeSelections (sel) =>
-    
+      
       unless sel.pristine_insertText?
         sel.pristine_insertText = sel.insertText
         
-      isAutocompleteInsert = (sel, txt) ->
+      isAutocompleteInsert = (sel, txt) =>
+        minLen = @minComplete
         selTxt = sel.getText()
         selLen = selTxt.length
         txtLen = txt.length
+        log "autocomplete-test:: #{selLen} #{minLen}"
         
-        ( 2 < selLen < txtLen ) and ( txt.startsWith selTxt )
+        ( minLen <= selLen <= txtLen ) and ( txt.startsWith selTxt )
 
 
       fitsCurrentLine = (sel, selLen, txtLen) ->
@@ -250,46 +256,65 @@ class OvertypeMode
         
         
       sel.insertText = ( txt, opts ) =>
-    
+        
+        # ast = atom.config.get 'editor.atomicSoftTabs'
+        # if ast
+        #   atom.config.set 'editor.atomicSoftTabs', off
+        # 
+        # fixAst = ->
+        #   atom.config.set 'editor.atomicSoftTabs', ast
+          
         unless @active()
           #
           # standard-mode for paste 'selection.insertText'
           #
           return sel.pristine_insertText txt, opts
+
         else unless @cfg 'enableAutocomplete'
-          console.log "auto-complete", @cfg 'enableAutocomplete'
+          console.log "auto-complete not active", @cfg 'enableAutocomplete'
           return sel.pristine_insertText txt, opts
-        # else if sel.getText().length is 1
-        #   return sel.editor.insertText txt, opts
-    
-        # console.log "sel '#{sel.getText().length}' inserts '#{txt.length}' for", sel.isEmpty(), sel
-        
+
         unless isAutocompleteInsert sel, txt
+          log "no autocomplete insert detected ?"
+          log "'#{txt}'", sel
           return sel.pristine_insertText txt, opts
           
         editor = sel.editor
         selLen = sel.getText().length
         txtLen = txt.length
-        
-        if fitsCurrentLine sel, selLen, txtLen
-          #
-          # insert-txt fits on current-line
-          #
-          sel.delete()
-          editor.selectRight txtLen - selLen
-          sel.pristine_insertText txt, opts
-          #
-        else
-          #
-          # current-line needs expansion
-          #
-          sel.delete()
-          sel.selectToEndOfLine()
-          sel.pristine_insertText txt, opts
-          { end } = sel.getBufferRange()
-          editor.setCursorBufferPosition end
-   
+        prefix = sel.getText()
 
+        editor.mutateSelectedText (sel, idx) =>
+          log "sel-#{idx} '#{sel.getText()}'"
+          range = sel.getBufferRange()
+          
+          if sel.isEmpty()
+            range.start.column -= prefix.length
+            
+          p2 = sel.editor.getTextInBufferRange range
+          log "p2='#{p2}' == '#{prefix}'", p2 == prefix
+          return if p2 isnt prefix
+          
+          if fitsCurrentLine sel, selLen, txtLen
+            # log "fits on line"
+            range.end.column += txtLen - p2.length
+            res = editor.setTextInBufferRange range, txt
+          else
+            # log "expands line"
+            line = editor.lineTextForBufferRow range.start.row
+            range.end.column = line.length
+            res = sel.editor.setTextInBufferRange range, txt
+          #
+          # place caret behind the 
+          # new insertion range.
+          #
+          sel.setBufferRange {
+            start : res.end
+            end   : res.end 
+          }
+          res
+
+    
     @updateCursorStyle()
     
     @events.add(
@@ -312,24 +337,39 @@ class OvertypeMode
 
 
   onType: ( evt ) =>
-    
+   
     return unless editor = @active()
     #
     # only trigger when user types manually.
     #
-    return unless window.event instanceof TextEvent
+    wEvent = window.event
+    log "window-event", wEvent
     
+    return unless wEvent instanceof TextEvent
+    
+    # evt.cancel() if evt.text.length == 2
+    
+    #atom.config.set 'editor.atomicSoftTabs', off
+    log evt
     for sel in editor.getSelections()
-      if sel.isEmpty()
+      if sel.isEmpty() 
         continue if sel.cursor.isAtEndOfLine()
-        console.log "onType::selectRight"
-        if evt.text.length is 1
-          sel.selectRight()
-        else
-          for x in [ 1..evt.text.length ]
-            console.log 'selectRight'
-            sel.selectRight()
+      
+      if evt.text.length == 2
+        #
+        # TODO better solution ?
+        # typically from the bracket-matcher-package
+        # quick&dirty solution :
+        # use only the first-char..
+        #
+        evt.cancel()
+        theChar = evt.text[0]
+        sel.insertText theChar
+        sel.cursor.moveRight()
+      else
+        sel.selectRight()
 
+    #atom.config.set 'editor.atomicSoftTabs', on
 #
 # inject the implementations of behaviours.
 #
