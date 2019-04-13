@@ -12,10 +12,10 @@ overwriteSelection = ( sel, caretPos='start', keepSelection=yes ) ->
   # keep the selection, but place the caret
   # at the beginning or end.
   #
-  sel.setBufferRange { 
+  sel.setBufferRange 
     start : range[ caretPos ]
     end   : range[ caretPos ]
-  }
+  
   sel.clear() unless keepSelection
 
 
@@ -25,13 +25,16 @@ cmd.duplicateLines = ->
     #
     # standard-mode for 'editor:newline-below'
     #
+    @log "cmd.duplicateLines -> .insertNewlineBelow"
     return @activeEditor().insertNewlineBelow()
-
+  
+  @log "cmd.duplicateLines editor='#{editor.id}'"
   editor.duplicateLines()
 
 
 cmd.pasteLikeLawrence = ->
-  console.info "pasteLikeLawrence:: starts"
+ 
+  @log "cmd.pasteLikeLawrence starts"
   
   clipboardText = atom.clipboard.read()
   return if clipboardText.length is 0
@@ -39,8 +42,8 @@ cmd.pasteLikeLawrence = ->
   lineEnding = @getLineEnding()
   lines = clipboardText.split lineEnding
   
-  if lines.length is 1
-    console.info "no content or single-line to paste. returning"
+  if lines.length is 0
+    @log "cmd.pasteLikeLawrence no-content", 1
     return
     
   editor = @activeEditor()
@@ -55,18 +58,27 @@ cmd.pasteLikeLawrence = ->
     # nothing to add to the clipboard-text.
     #
     newLines = lines
-  else
     #
-    # copy the line-beginnings.
+  else  
     #
+    # assemble the line-beginnings.
+    #
+    bufferLineCount = editor.getLineCount() 
+    
     newLines = []
     for newLine, idx in lines
-      oldLine = editor.lineTextForBufferRow row + idx
+      
+      currentLine = row + idx
+      #
+      if currentLine >= bufferLineCount
+        oldLine = ' '.repeat column
+      else
+        oldLine = editor.lineTextForBufferRow currentLine
       
       leftPrefix = oldLine[ ...column ]
       if leftPrefix.length < column 
-        spc = ' '.repeat column - leftPrefix.length
-        leftPrefix += spc
+        spaces = ' '.repeat column - leftPrefix.length
+        leftPrefix += spaces
         
       newLines.push leftPrefix + newLine
   
@@ -97,12 +109,11 @@ cmd.pasteLikeLawrence = ->
     # merge change into a single 'undo'-operation.
     #
     editor.groupChangesSinceCheckpoint pristineBuffer
-    console.info 'pasteLikeLawrence:: finished without error.'
+    @log 'pasteLikeLawrence:: finished without error.', 1
     #
   catch error
     #
-    # smth went wrong ?
-    console.error "pasteLikeLawrence:: error was", error
+    @log "cmd.pasteLikeLawrence:: error was #{error}", 3
     #
     # revert all changes to the buffer.
     #
@@ -130,7 +141,7 @@ cmd.backspace2col0 = ->
     editor.groupChangesSinceCheckpoint pristineBuffer
     
   catch error
-    console.error 'backspace2col0:: had error:', error
+    @log "backspace2col0:: had error: '#{error}'", 3
     editor.revertToCheckpoint pristineBuffer
 
 
@@ -144,7 +155,7 @@ cmd.backspace2lastcol = ->
     #
     return @activeEditor().deleteToEndOfLine()
 
-  console.log "backspace2lastcol::start"
+  @log "backspace2lastcol:: start"
   try
     pristineBuffer = editor.createCheckpoint()
     
@@ -159,7 +170,7 @@ cmd.backspace2lastcol = ->
     editor.setTextInBufferRange newRange, newText
   
   catch error
-    console.error "backspace2lastcol:: had error:", error
+    @log "backspace2lastcol:: had error: '#{error}'", 3
     editor.revertToCheckpoint pristineBuffer
 
 
@@ -171,7 +182,7 @@ cmd.enter = ->
   # on the last line of the buffer. Then a new-line gets 
   # inserted.
   #
-  unless (editor = @active()) or (off is @cfg 'changedReturn')
+  unless (editor = @active()) or (off is @cfg 'Keypress.keyReturn')
     #
     # standard-mode for enter 'core:insertNewline'
     #
@@ -205,19 +216,25 @@ cmd.backspace = ->
   # Instead it moves over, until it finds a character.
   #
   
-  unless ( editor = @active() ) or (off is @cfg 'changedBackspace')
+  unless ( editor = @active() ) or (off is @cfg 'Keypress.keyBackspace')
     #
     # standard-mode for backspace 'core:backspace'
     #
     return @activeEditor().backspace()
   
-  editor.mutateSelectedText ( sel, idx ) ->
+  editor.mutateSelectedText ( sel, idx ) =>
     
     if sel.isEmpty()
       cursor = sel.cursor
       
-      while cursor.isAtBeginningOfLine()
+      range = cursor.getBufferPosition()
+      char  = sel.editor.getTextInBufferRange range
+      @log "cmd.backspace char='#{char}'"
+       
+      if cursor.isAtBeginningOfLine()
         cursor.moveLeft()
+      # while cursor.isAtBeginningOfLine()
+      #   cursor.moveLeft()
       
       sel.selectLeft()
       sel.insertText ' '
@@ -237,13 +254,13 @@ cmd.delete = ->
   # Basically the first hit of the delete-key overwrites with a space.
   # A second hit will delete the space-char.
   #
-  unless (editor = @active()) or (off is @cfg 'changedDelete')
+  unless (editor = @active()) or (off is @cfg 'Keypress.keyDelete')
     #
     # standard-mode for delete 'core:delete'
     #
     return @activeEditor().delete()
   
-  editor.mutateSelectedText ( sel, idx ) ->
+  editor.mutateSelectedText (sel, idx) =>
     
     unless sel.isEmpty()
       #
@@ -257,39 +274,156 @@ cmd.delete = ->
     col  = cur.getBufferColumn()
     char = cur.getCurrentBufferLine()[col]
     #
-    sel.delete()
+    sel.delete() if char?
     #
     unless editor.hasMultipleCursors()
       #
       # only in single-cursor-mode,
       # test for space under cursor 
       #
-      return if char is ' '
+      @log "cmd.delete mode=single char='#{char}'"
+      if @cfg 'Keypress.keyDeleteSpace'
+        return if char is ' '
     #
-    # always overwrite in multi-caret-mode.
+    # always overwrite in multi-curser-mode.
     #
     range = sel.getBufferRange()
+    @log "cmd.delete inserts ' ' range=#{range}"
     editor.setTextInBufferRange range, ' '
     sel.cursor.moveLeft()
 
 
+myClipboard = (lineEnding) ->
+  
+  cb = 
+    text  : atom.clipboard.read()
+    size  : 0
+    lines : []
+  
+  cb.size  = cb.text.length
+  cb.lines = cb.text.split lineEnding
+    
+  log "#{cb.lines.length}-rows out of chars=#{cb.size}"
+  
+  cb
+ 
+
+
+cmd.peekForVerticalPaste = (editor) ->
+  
+  clipBoard = myClipboard @getLineEnding()
+  
+  return if clipBoard.size is 0 
+
+  pasteLines = []  # array-of-array-of-lines, 1-per cursor
+  #
+  for cursorPoint, cid in editor.getCursorBufferPositions()
+    
+    { row: cursorRow, column: cursorColumn } = cursorPoint
+  
+    if cursorColumn is 0
+      #
+      # caret-position is at col-0, that is beginning-of-line.
+      # so, no prefix to add to the clipboard-lines.
+      #
+      pasteLines.push clipBoard.lines
+      #
+      # all done, next
+      continue
+      
+    # assemble the line-prefixes.
+    #
+    newLines = []
+    #
+    bufferLineCount = editor.getLineCount() 
+    for newLine, idx in clipBoard.lines
+      
+      currentLine = cursorRow + idx
+      if currentLine >= bufferLineCount
+        #
+        # line not in buffer
+        #
+        oldLine = ' '.repeat cursorColumn
+      else
+        # can read line from buffer
+        #
+        oldLine = editor.lineTextForBufferRow currentLine
+      
+      leftPrefix = oldLine[...cursorColumn]
+      
+      if leftPrefix.length < cursorColumn
+        
+        spaces = ' '.repeat cursorColumn - leftPrefix.length
+        #
+        # filling the gap with spaces.
+        #
+        leftPrefix += spaces
+        
+      newLines.push leftPrefix + newLine
+  
+    # store resulting array-of-lines.
+    #
+    pasteLines.push newLines
+  
+  @log "finished #{cid} x cursor-positions."
+  #
+  pasteLines.map (arr, i) ->
+    @log "\t#{i}. #{arr.length} x rows."
+  
+# 
+# 
+# 
+
+cmd.peekBeforePaste = -> 
+  #
+  # visual helper to highlite paste-area(s)
+  # before actually pasting stuff.
+  #
+  editor = @active()
+  
+  if editor
+    return @peekForVerticalPaste editor
+  
+  
+  editor = @activeEditor()
+  clipBoard = splitClipboard @getLineEnding()
+  
+  return if clipBoard.size is 0
+  
+  editor.mutateSelectedText ( sel, idx ) =>
+    
+    @log "cmd.peekForPaste:: selection-#{idx}"
+    
+    unless sel.isEmpty()
+      sel.clear()
+      { start } = sel.getBufferRange()
+      selLen    = sel.getText().length
+      @log "selecion-length is #{selLen}"
+      sel.setBufferRange {
+        start: start
+        end  : start
+      }
+    
+    sel.selectRight clipBoard.size
+
+
 cmd.paste = ->
 
-  unless (editor = @active()) or (off is @cfg 'changedPaste')
+  unless (editor = @active()) or (off is @cfg 'Keypress.keyPaste')
     #
     # standard-mode for paste 'core:pasteText'
     #
     return @activeEditor().pasteText()
 
   clipboardText = atom.clipboard.read()
-  single = clipboardText.includes '\n'
+  single = clipboardText.includes @getLineEnding()
   return if clipboardText.length is 0
   
   cursor = editor.getLastCursor()
   rc_pos = cursor.getScreenPosition()
   editor.selectRight clipboardText.length
   editor.insertText clipboardText
-  log "it paste stupid"
+  @log "it's paste stupid"
   cursor.setScreenPosition rc_pos
 
 
@@ -316,9 +450,9 @@ cmd.smartInsert = ->
     
     c = 0
     until start == end
-      #log "until has start=#{start}"
+
       char = line[start]
-      log "start=#{start} char='#{char}' c=#{c}"
+      @log "cmd.smartInsert:: start=#{start} char='#{char}' c=#{c}"
       break unless char?
       
       if char is ' '
@@ -330,7 +464,7 @@ cmd.smartInsert = ->
       
       start++
       
-    log "ends with start=#{start}"
+    @log "hasSpacedArea:: ends with start=#{start}"
     areas
 
   
@@ -385,7 +519,7 @@ cmd.smartInsert = ->
   editor = @activeEditor()
   { row, column } = editor.getCursorBufferPosition()
   
-  console.log hasStructure editor, row
+  @log hasStructure editor, row
 
   return
   
@@ -394,7 +528,7 @@ cmd.smartInsert = ->
     l2 = l2.split ''
     len = Math.min l1.length, l2.length
     
-    console.log "length is ", len
+    @log "sim:: length is #{len}"
     
     r = new Array(len).fill false
      
@@ -405,49 +539,14 @@ cmd.smartInsert = ->
       if l1[idx] == l2[idx]
         r[idx] = l1[idx]
     
-    console.log "result is r::", r
+    @log "sim:: result is r='#{r}'"
     r
     
-  editor = @activeEditor()
-  cursor = editor.getLastCursor()
-  
   [ scope ] = editor.getRootScopeDescriptor().scopes 
   console.log "scope is", scope
   
   nonWord = atom.config.get 'editor.nonWordCharacters'
   console.log "non-word ", nonWord
-  { row, column } = editor.getCursorScreenPosition()
-  
-  # indent = cursor.getIndentLevel()
-  # console.log "indent is", indent
-  
-  t0 = editor.lineTextForBufferRow row
-  t1 = editor.lineTextForBufferRow row+1
-    
-  console.log "indent is", ind(t0)
-  
-  sim t0, t1
-
-
-cmd._paste = ->
-  
-  cursor = editor.getLastCursor()
-
-  unless @active()
-    #
-    # standard-mode for paste 'core:pasteText'
-    #
-    return @activeEditor().pasteText()
-  
-  return unless @cfg 'changedPaste'
-  
-  clipboardText = atom.clipboard.read()
-  return if clipboardText.length is 0
-  
-  single = clipboardText.includes '\n'
-  cursor = editor.getLastCursor()
-  
-  editor.selectRight clipboardText.length
 
 
 module.exports = cmd

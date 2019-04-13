@@ -1,4 +1,4 @@
-# Overtype-mode for Atom
+# Overtype-Mode
 
 Switch beetween insert- and overwrite-mode by using `Ins`-key.
 Since on Mac/plat-darwin there is no `Insert`-key this package starts automaticly. It places a switch into the status-bar to choose between `overwrite`- and `insert`-mode. The startup-mode is a configurable-option.
@@ -10,23 +10,29 @@ actions to replace `editor:delete-to-end-of-line` and `editor:delete-to-beginnin
 
 
 ## ToDo
-- make use of Notifications & logging to devtools-console.
+- (++) make use of Notifications & logging to devtools-console.
 - ++ adjust paste-operations during overwrite-mode. See [issue-#14](https://github.com/brunetton/atom-overtype-mode/issues/14) and [issue-#15](https://github.com/brunetton/atom-overtype-mode/issues/15)
-- try some 'peek-paste'-action, that visually marks the region to overwrite, before actually triggering a overwrite-operation.
+- (+) try some 'peek-paste'-action, that visually marks the region to overwrite, before actually triggering a overwrite-operation.
 - ++ fixed insertions of auto-completed text. see [issue-#13](https://github.com/brunetton/atom-overtype-mode/issues/13). Needs testing.
-  - autocomplete-plus.strictMatching = on
-  - autocomplete-plus.minimumWordLength = 3
-
+  - (++) autocomplete-plus.strictMatching = on
+  - (++) autocomplete-plus.minimumWordLength = 3
+- (++) add relevant setting-options of shipped atom-packages to the settings-section
 - ++ check-for & proper-handling of active-selections when delete & backspace-keypresses or paste-events happen in overwrite-mode.
 - cross-package tests - might there be other commonly used packages that collide/conflict with `overtype-mode` ?
   - glich: insertions from col-0 fail, !setting `AtomicSoftTabs`!
+    - added a option to settings-view
   - glitch: pair-insertions by `bracket-matcher`.
+    - added option _SingleChar-Filter_ to settings-view
 - ++ make the package extensible and completly configurable via atoms-settings-view.
 - ++ bug: after deactivation via settings-view the re-activation fails ? fixed & done, Disposable. see [issue-#22](https://github.com/brunetton/atom-overtype-mode/issues/22)
 - ++ mode-activation on a per TextEditor basis. Use state-serialization ? Prbl. not needed.
 
 
 ## Future
+- try a mode _stationary-caret_ for bracket-matcher that allows and supports :
+  - maybe make use of new API-features _MarkerLayer_ ?
+  - naked-pair-insertion and line-adjusts as long as the caret is between the newly ionserted pair.
+  - wrapping of selected-text in pairs without shifting line-contents. Thats would be nice.
 - investigate why _**snippet**_-insertions does'nt work ? Seems snippets from `autocomplete-plus` do work !
 - provide a minimal implementation for vertical cut/copy/paste-operations.
 - (+) observe configuration-changes ? and act upon changes...

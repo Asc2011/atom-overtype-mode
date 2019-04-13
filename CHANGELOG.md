@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.5.0
+- added Logging & Notifications
 - fixed bug during cleanup of resources in `.deactivate()`. see [issue-#22](https://github.com/brunetton/atom-overtype-mode/issues/22)
 - added paste-action `pasteLikeLawrence`. see [issue-#15](https://github.com/brunetton/atom-overtype-mode/issues/15)
   - reworked, operates with Ranges -> indent-troubles gone.
@@ -16,6 +17,9 @@
 - adjusted behaviour of `return/enter`-key.
 - adjusted behaviour of `backspace`-key.
 - added settings-section :
+  - added sub-sections to settings
+    - _Package_, _Keypress_ (keyboard-mapping) and _Others_
+      - Others includes relevant options from atom-bundled packages. _bracket-matcher_, _autocomplete-plus_, _autocomplete-snippets_ and the _editor_ itself. 
   - added option to enable/disable the cursor-styling.
   - added option to hide and/or position the `mode-indicator` in the status-bar.
   - made all options configurable.
